@@ -27,26 +27,18 @@ export const generateZodObjectVar = (
           // const {varName} =
           ts.createIdentifier(varName),
           undefined,
-          ts.createCall(
-            ts.createPropertyAccess(
-              // const {varName} = {zodImportValue}.object({})
-              ts.createIdentifier(zodImportValue),
-              ts.createIdentifier("object")
-            ),
-            undefined,
-            [
-              ts.createObjectLiteral(
-                Object.entries(fixture).map(([key, tsCall]) => {
-                  return ts.createPropertyAssignment(
-                    ts.createIdentifier(key),
-                    tsCall
-                  );
-                }),
+          buildZodSchema(zodImportValue, "object", [
+            ts.createObjectLiteral(
+              Object.entries(fixture).map(([key, tsCall]) => {
+                return ts.createPropertyAssignment(
+                  ts.createIdentifier(key),
+                  tsCall
+                );
+              }),
 
-                true
-              ),
-            ]
-          )
+              true
+            ),
+          ])
         ),
       ],
       ts.NodeFlags.Const
@@ -124,8 +116,9 @@ export const generateObject = ({
   typeChecker: ts.TypeChecker;
   zodImportValue: string;
   sourceFile: ts.SourceFile;
-}): IFixtureObject => {
-  const fixtureObject: IFixtureObject = {};
+}): ts.CallExpression => {
+  console.log("Generate Object");
+  const fixtureObject: { [key: string]: ts.CallExpression } = {};
 
   ts.forEachChild(interfaceNode, (node) => {
     if (!ts.isPropertySignature(node)) {
@@ -144,7 +137,15 @@ export const generateObject = ({
     });
   });
 
-  return fixtureObject;
+  return buildZodSchema(zodImportValue, "object", [
+    ts.createObjectLiteral(
+      Object.entries(fixtureObject).map(([key, tsCall]) => {
+        return ts.createPropertyAssignment(ts.createIdentifier(key), tsCall);
+      }),
+
+      true
+    ),
+  ]);
 };
 
 function handleJSDocTags(
@@ -264,24 +265,24 @@ const generateNodeValue = ({
           sourceFile,
         })
       );
-     const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
-        console.log(
-          "ARR: ",
-          printer.printNode(
-            ts.EmitHint.Unspecified,
-            ts.createArrayLiteral(allTypes, true),
-            sourceFile
-          )
-        );
-        return buildZodSchema(zodImportValue, "union", [
+      const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
+      console.log(
+        "ARR: ",
+        printer.printNode(
+          ts.EmitHint.Unspecified,
           ts.createArrayLiteral(allTypes, true),
-        ]);
+          sourceFile
+        )
+      );
+      return buildZodSchema(zodImportValue, "union", [
+        ts.createArrayLiteral(allTypes, true),
+      ]);
     }
 
     // Check for literal
     if (kind === ts.SyntaxKind.LiteralType) {
       console.log("Generate Primitive Literal", node, node.type);
-      
+
       const literal = (node as any).literal || (node as any).type.literal;
       return generatePrimitive({
         kind: literal.kind,
@@ -397,16 +398,10 @@ const generateNodeValue = ({
           })
         );
 
-
-
         const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
         console.log(
           "ARR: ",
-          printer.printNode(
-            ts.EmitHint.Unspecified,
-            values[0],
-            sourceFile
-          )
+          printer.printNode(ts.EmitHint.Unspecified, values[0], sourceFile)
         );
         return buildZodSchema(zodImportValue, "union", [
           ts.createArrayLiteral(values, true),
