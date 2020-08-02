@@ -428,14 +428,16 @@ const generateNodeValue = (nodeProps: NodeProps): ts.CallExpression => {
       });
     }
 
-    if (kind === ts.SyntaxKind.TypeReference) {
-      return handleTypeReference(nodeProps, props, node as any as ts.TypeReferenceNode);
-    }
+    
     // Is a reference to some other type
     if (node.type && ts.isTypeReferenceNode(node.type)) {
+      console.log('Node.type is TypeRef');
       return handleTypeReference(nodeProps, props, node.type);
     }
-
+    if (kind === ts.SyntaxKind.TypeReference) {
+      console.log('Top Level Type Ref');
+      return handleTypeReference(nodeProps, props, node as any as ts.TypeReferenceNode);
+    }
 
     console.log("Generate Primitive");
 
