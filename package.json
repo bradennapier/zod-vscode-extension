@@ -1,0 +1,86 @@
+{
+  "name": "zod",
+  "displayName": "zod",
+  "description": "Zod VSCode Extension",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.47.0"
+  },
+  "categories": [
+    "Formatters",
+    "Other"
+  ],
+  "keywords": [
+    "typescript",
+    "zod",
+    "runtypes",
+    "validation"
+  ],
+  "activationEvents": [
+    "onLanguage:typescript"
+  ],
+  "main": "./out/extension.js",
+  "enableProposedApi": true,
+  "contributes": {
+    "commands": [
+      {
+        "command": "zod.helloWorld",
+        "title": "Hello World"
+      }
+    ],
+    "configuration": {
+      "title": "Zod",
+      "properties": {
+        "zod.defaultZodValueName": {
+          "type": "string",
+          "default": "z",
+          "markdownDescription": "If no zod import is detected, what value should be used by default?"
+        },
+        "zod.importStarAs": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Import Namespace (import * as z from)?  Will use (import z from) if false"
+        },
+        "zod.jsDocRenderErrorMessages": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Should we parse JSDoc tags to look for validation error messages?"
+        },
+        "zod.jsDocUseMainContentAsErrorMessage": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Use the main content for error descriptions instead of a tags value? When true, `JS Doc Error Tag` is ignored"
+        },
+        "zod.jsDocErrorTag": {
+          "type": "string",
+          "default": "error,message,throws",
+          "markdownDescription": "The tag to look for to use as the error message.  In order of precedence when comma-separated. Use `<main>` to indicate tag main value if needed."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "yarn run compile",
+    "compile": "tsc -p ./",
+    "lint": "eslint src --ext ts",
+    "watch": "tsc -watch -p ./",
+    "pretest": "yarn run compile && yarn run lint",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/glob": "^7.1.1",
+    "@types/mocha": "^7.0.2",
+    "@types/node": "^13.11.0",
+    "@types/vscode": "^1.47.0",
+    "@typescript-eslint/eslint-plugin": "^2.30.0",
+    "@typescript-eslint/parser": "^2.30.0",
+    "eslint": "^6.8.0",
+    "glob": "^7.1.6",
+    "mocha": "^7.1.2",
+    "typescript": "^3.9.7",
+    "vscode-test": "^1.3.0"
+  },
+  "dependencies": {
+    "zod": "^1.10.1"
+  }
+}
