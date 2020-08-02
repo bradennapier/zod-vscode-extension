@@ -265,15 +265,7 @@ const generateNodeValue = ({
           sourceFile,
         })
       );
-      const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
-      console.log(
-        "ARR: ",
-        printer.printNode(
-          ts.EmitHint.Unspecified,
-          ts.createArrayLiteral(allTypes, true),
-          sourceFile
-        )
-      );
+      
       return buildZodSchema(zodImportValue, "union", [
         ts.createArrayLiteral(allTypes, true),
       ]);
