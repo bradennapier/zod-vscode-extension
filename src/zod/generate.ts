@@ -8,6 +8,17 @@ import { EXTENSION_NAME, JS_DOC_MAIN_TAG } from "../constants";
 
 export type IFixtureObject = any;
 
+type NodeProps = {
+  node: ts.PropertySignature;
+  name: string;
+  kind: ts.SyntaxKind;
+  typeChecker: ts.TypeChecker;
+  zodImportValue: string;
+  sourceFile: ts.SourceFile;
+};
+
+type SettingsProps = { isOptional: boolean; errorMessage: undefined | string };
+
 /**
  * ```typescript
  * export? const ${varName} = ${zodImportValue}.object(fixture)
@@ -182,25 +193,140 @@ function handleJSDocTags(
   }
 }
 
-const generateNodeValue = ({
-  node,
-  name,
-  kind,
-  typeChecker,
-  zodImportValue,
-  sourceFile,
-}: {
-  node: ts.PropertySignature;
-  name: string;
-  kind: ts.SyntaxKind;
-  typeChecker: ts.TypeChecker;
-  zodImportValue: string;
-  sourceFile: ts.SourceFile;
-}): IFixtureObject => {
+function handleTypeReference(nodeProps: NodeProps, props: SettingsProps, node: ts.TypeReferenceNode): ts.CallExpression {
+  const { name, kind, typeChecker, zodImportValue, sourceFile } = nodeProps;
+  
+  console.log("Type Reference");
+  const refNode = (node as any) as ts.TypeReferenceNode;
+
+  if (ts.isIdentifier(refNode.typeName) && refNode.typeName.text === "Date") {
+    console.log("isDate");
+    return generatePrimitive({
+      kind: ts.SyntaxKind.ClassKeyword,
+      name: refNode.typeName.text,
+      props,
+      zodImportValue,
+      sourceFile,
+    });
+  }
+
+  const type = typeChecker.getTypeAtLocation(node);
+
+  const typeDeclaration =
+    type.symbol && type.symbol.declarations && type.symbol.declarations[0];
+
+  const nodeType = (node as any).type ;
+
+  // Check for Array<string>
+  if (nodeType && nodeType.typeName && nodeType.typeName.text === "Array") {
+    const elementType = typeChecker.getTypeAtLocation(
+      nodeType.typeArguments[0]
+    );
+    const elementKind = nodeType.typeArguments[0].kind;
+    // node is either aliased (non primitive) or in typeArguments (primitive)
+    const elementNode = elementType?.aliasSymbol?.declarations[0]
+      ? elementType.aliasSymbol.declarations[0]
+      : nodeType;
+
+    const generateNode = () =>
+      generateNodeValue({
+        node: elementNode,
+        name,
+        kind: elementKind,
+        typeChecker,
+        zodImportValue,
+        sourceFile,
+      });
+
+    console.log("Generate Array UNHANDLED: ", {
+      generateNode,
+      name,
+      kind,
+    });
+    return buildZodSchema(zodImportValue, 'any');;
+  }
+
+  // Check for Enums
+  if (
+    typeDeclaration &&
+    typeDeclaration.kind === ts.SyntaxKind.EnumDeclaration
+  ) {
+    const enumMembers = type.symbol.exports! as Map<string, any>;
+    const enumName = type.symbol.name;
+
+    console.log("Generate Enum: ", {
+      enumName,
+      enumMembers,
+    });
+    return buildZodSchema(zodImportValue, "enum", [
+      ts.createArrayLiteral(
+        [...enumMembers.values()].map((value) =>
+          ts.createStringLiteral(value.name)
+        ),
+        true
+      ),
+    ]);
+  }
+
+  // Check for other interfaces / types
+  if (
+    (typeDeclaration &&
+      typeDeclaration.kind === ts.SyntaxKind.InterfaceDeclaration) ||
+    (typeDeclaration && typeDeclaration.kind === ts.SyntaxKind.TypeLiteral)
+  ) {
+    const interfaceNode = type.symbol.declarations[0] as any;
+    return generateObject({
+      interfaceNode,
+      typeChecker,
+      zodImportValue,
+      sourceFile,
+    });
+  }
+
+  // Maybe type only has aliasSymbol?
+  const typeAliasDeclaration =
+    type.aliasSymbol &&
+    type.aliasSymbol.declarations &&
+    type.aliasSymbol.declarations[0];
+  if (
+    typeAliasDeclaration &&
+    typeAliasDeclaration.kind === ts.SyntaxKind.TypeAliasDeclaration
+  ) {
+    const types: any[] = (type.aliasSymbol!.declarations[0] as any).type.types;
+    const values = types.map((t) =>
+      generateNodeValue({
+        kind: t.kind,
+        name,
+        node: t,
+        typeChecker,
+        zodImportValue,
+        sourceFile,
+      })
+    );
+
+    const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
+    console.log(
+      "ARR: ",
+      printer.printNode(ts.EmitHint.Unspecified, values[0], sourceFile)
+    );
+    return buildZodSchema(zodImportValue, "union", [
+      ts.createArrayLiteral(values, true),
+    ]);
+  }
+
+  console.log('UNHANDLED TYPE REF');
+  return buildZodSchema(zodImportValue, 'any');
+}
+
+const generateNodeValue = (nodeProps: NodeProps): ts.CallExpression => {
+  const { node, name, kind, typeChecker, zodImportValue, sourceFile } = nodeProps;
   try {
+    
+    console.log("Generate Kind: ", name, kind, node);
+
     const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
 
-    const props: { isOptional: boolean; errorMessage: undefined | string } = {
+    const props: SettingsProps = {
       isOptional: !!node.questionToken,
       errorMessage: undefined,
     };
@@ -244,12 +370,29 @@ const generateNodeValue = ({
           sourceFile,
         });
 
-      console.log("Generate Array: ", {
+      console.log("Generate Array UNHANDLED STILL: ", {
         generateNode,
         name,
         kind,
       });
-      return;
+      return buildZodSchema(zodImportValue, 'any');;
+    }
+
+    if (kind === ts.SyntaxKind.IntersectionType) {
+      const types: any[] = (node as any).type.types;
+      const allTypes = types.map((type) => {
+        console.log("Int Type: ", type);
+        return generateNodeValue({
+          kind: type.kind,
+          name,
+          node: { type } as any,
+          typeChecker,
+          zodImportValue,
+          sourceFile,
+        });
+      });
+
+      return buildZodSchema(zodImportValue, "intersection", [...allTypes]);
     }
 
     // Check for Union Types
@@ -285,129 +428,14 @@ const generateNodeValue = ({
       });
     }
 
+    if (kind === ts.SyntaxKind.TypeReference) {
+      return handleTypeReference(nodeProps, props, node as any as ts.TypeReferenceNode);
+    }
     // Is a reference to some other type
     if (node.type && ts.isTypeReferenceNode(node.type)) {
-      console.log("Type Reference");
-
-      if (
-        ts.isIdentifier(node.type.typeName) &&
-        node.type.typeName.text === "Date"
-      ) {
-        console.log("isDate");
-        return generatePrimitive({
-          kind: ts.SyntaxKind.ClassKeyword,
-          name: node.type.typeName.text,
-          props,
-          zodImportValue,
-          sourceFile,
-        });
-      }
-
-      const type = typeChecker.getTypeAtLocation(node);
-
-      const typeDeclaration =
-        type.symbol && type.symbol.declarations && type.symbol.declarations[0];
-
-      const nodeType = node.type as any;
-
-      // Check for Array<string>
-      if (nodeType && nodeType.typeName && nodeType.typeName.text === "Array") {
-        const elementType = typeChecker.getTypeAtLocation(
-          nodeType.typeArguments[0]
-        );
-        const elementKind = nodeType.typeArguments[0].kind;
-        // node is either aliased (non primitive) or in typeArguments (primitive)
-        const elementNode = elementType?.aliasSymbol?.declarations[0]
-          ? elementType.aliasSymbol.declarations[0]
-          : nodeType;
-
-        const generateNode = () =>
-          generateNodeValue({
-            node: elementNode,
-            name,
-            kind: elementKind,
-            typeChecker,
-            zodImportValue,
-            sourceFile,
-          });
-
-        console.log("Generate Array: ", {
-          generateNode,
-          name,
-          kind,
-        });
-        return;
-      }
-
-      // Check for Enums
-      if (
-        typeDeclaration &&
-        typeDeclaration.kind === ts.SyntaxKind.EnumDeclaration
-      ) {
-        const enumMembers = type.symbol.exports! as Map<string, any>;
-        const enumName = type.symbol.name;
-
-        console.log("Generate Enum: ", {
-          enumName,
-          enumMembers,
-        });
-        return buildZodSchema(zodImportValue, "enum", [
-          ts.createArrayLiteral(
-            [...enumMembers.values()].map((value) =>
-              ts.createStringLiteral(value.name)
-            ),
-            true
-          ),
-        ]);
-      }
-
-      // Check for other interfaces / types
-      if (
-        (typeDeclaration &&
-          typeDeclaration.kind === ts.SyntaxKind.InterfaceDeclaration) ||
-        (typeDeclaration && typeDeclaration.kind === ts.SyntaxKind.TypeLiteral)
-      ) {
-        const interfaceNode = type.symbol.declarations[0] as any;
-        return generateObject({
-          interfaceNode,
-          typeChecker,
-          zodImportValue,
-          sourceFile,
-        });
-      }
-
-      // Maybe type only has aliasSymbol?
-      const typeAliasDeclaration =
-        type.aliasSymbol &&
-        type.aliasSymbol.declarations &&
-        type.aliasSymbol.declarations[0];
-      if (
-        typeAliasDeclaration &&
-        typeAliasDeclaration.kind === ts.SyntaxKind.TypeAliasDeclaration
-      ) {
-        const types: any[] = (type.aliasSymbol!.declarations[0] as any).type
-          .types;
-        const values = types.map((t) =>
-          generateNodeValue({
-            kind: t.kind,
-            name,
-            node: t,
-            typeChecker,
-            zodImportValue,
-            sourceFile,
-          })
-        );
-
-        const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
-        console.log(
-          "ARR: ",
-          printer.printNode(ts.EmitHint.Unspecified, values[0], sourceFile)
-        );
-        return buildZodSchema(zodImportValue, "union", [
-          ts.createArrayLiteral(values, true),
-        ]);
-      }
+      return handleTypeReference(nodeProps, props, node.type);
     }
+
 
     console.log("Generate Primitive");
 
@@ -416,6 +444,6 @@ const generateNodeValue = ({
     console.log(`Error generating fixture for name ${name} kind ${kind}`);
     console.error(err);
     // return something
-    return "";
+    return buildZodSchema(zodImportValue, 'any');
   }
 };
