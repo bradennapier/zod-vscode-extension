@@ -353,10 +353,9 @@ const generateNodeValue = ({
         });
         return buildZodSchema(zodImportValue, "enum", [
           ts.createArrayLiteral(
-            [...enumMembers.values()].map((value) => {
-              console.log("Value: ", value, typeof value);
-              return ts.createStringLiteral(value.name);
-            }),
+            [...enumMembers.values()].map((value) =>
+              ts.createStringLiteral(value.name)
+            ),
             true
           ),
         ]);
