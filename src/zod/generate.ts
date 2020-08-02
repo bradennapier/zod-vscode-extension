@@ -265,7 +265,7 @@ const generateNodeValue = ({
           sourceFile,
         })
       );
-      
+
       return buildZodSchema(zodImportValue, "union", [
         ts.createArrayLiteral(allTypes, true),
       ]);
@@ -302,6 +302,7 @@ const generateNodeValue = ({
           sourceFile,
         });
       }
+
       const type = typeChecker.getTypeAtLocation(node);
 
       const typeDeclaration =
@@ -343,14 +344,22 @@ const generateNodeValue = ({
         typeDeclaration &&
         typeDeclaration.kind === ts.SyntaxKind.EnumDeclaration
       ) {
-        const enumMembers = type.symbol.exports!;
+        const enumMembers = type.symbol.exports! as Map<string, any>;
         const enumName = type.symbol.name;
 
         console.log("Generate Enum: ", {
           enumName,
           enumMembers,
         });
-        return;
+        return buildZodSchema(zodImportValue, "enum", [
+          ts.createArrayLiteral(
+            [...enumMembers.values()].map((value) => {
+              console.log("Value: ", value, typeof value);
+              return ts.createStringLiteral(value.name);
+            }),
+            true
+          ),
+        ]);
       }
 
       // Check for other interfaces / types
