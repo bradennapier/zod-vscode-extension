@@ -1,6 +1,6 @@
 import * as ts from "typescript";
 import * as vscode from "vscode";
-import { GetValueProps } from "./getValue";
+import { GetValueProps, ZodConverterConfig } from "./types";
 import { EXTENSION_NAME } from './constants';
 
 export type InterfaceishNode =
@@ -21,8 +21,7 @@ function report(sourceFile: ts.SourceFile, node: ts.Node, message: string) {
   );
 }
 
-function getZodImport(importStarAs: boolean = true) {
-  const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
+function getZodImport(config: ZodConverterConfig) {
   return config.importStarAs
     ? ts.createImportDeclaration(
         undefined,
@@ -118,7 +117,7 @@ export const findInterface = (
       pos = lastImportPos;
     }
 
-    zodImportNode = getZodImport();
+    zodImportNode = getZodImport(props.config);
 
     const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
     

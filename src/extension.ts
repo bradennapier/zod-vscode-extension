@@ -2,11 +2,11 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode";
 import * as ts from "typescript";
-import * as path from "path";
 
 import { COMMAND_GENERATE_ZOD, EXTENSION_NAME } from "./constants";
 import { ZodSchemaGenerator } from "./generator";
 import { getValue } from "./getValue";
+import { ZodConverterConfig } from './types';
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -53,6 +53,10 @@ export function activate(context: vscode.ExtensionContext) {
         props
       ) => {
 
+        const config  = vscode.workspace.getConfiguration(EXTENSION_NAME) as unknown as ZodConverterConfig;
+
+        console.log('Config: ', config);
+
         const { range, line, text } = props;
 				
 				const edit = new vscode.WorkspaceEdit();
@@ -74,6 +78,7 @@ export function activate(context: vscode.ExtensionContext) {
           filename: document.uri.path,
           range,
           output,
+          config,
 					insert,
 					replace
         });

@@ -1,8 +1,8 @@
 import * as ts from "typescript";
 
-const JSDOC_FLAGS = ["positive", "max", "min", "length", "email"] as const;
+// const JSDOC_FLAGS = ["positive", "max", "min", "length", "email"] as const;
 
-type JSDocFlags = typeof JSDOC_FLAGS[number];
+// type JSDocFlags = typeof JSDOC_FLAGS[number];
 
 type GenerateProps = {
   kind: ts.SyntaxKind;
@@ -31,28 +31,28 @@ function buildExpression<T extends string>(
   throw new Error(`Unknown TypeScript Expression type: ${type}`);
 }
 
-const GLOBAL_FLAGS = new Map([
-  ["max", (value: string) => [buildExpression("number", value)]],
-  ["min", (value: string) => [buildExpression("number", value)]],
-] as const);
+// const GLOBAL_FLAGS = new Map([
+//   ["max", (value: string) => [buildExpression("number", value)]],
+//   ["min", (value: string) => [buildExpression("number", value)]],
+// ] as const);
 
-const NUMERIC_FLAGS = new Map([
-  ["positive", () => []],
-  ["negative", () => []],
-  ["nonnegative", () => []],
-  ["nonpositive", () => []],
-  ["int", () => []],
-  ...GLOBAL_FLAGS.entries(),
-] as const);
+// const NUMERIC_FLAGS = new Map([
+//   ["positive", () => []],
+//   ["negative", () => []],
+//   ["nonnegative", () => []],
+//   ["nonpositive", () => []],
+//   ["int", () => []],
+//   ...GLOBAL_FLAGS.entries(),
+// ] as const);
 
-const STRING_FLAGS = new Map([
-  ["url", () => []],
-  ["uuid", () => []],
+// const STRING_FLAGS = new Map([
+//   ["url", () => []],
+//   ["uuid", () => []],
 
-  ["length", (value: string) => [buildExpression("number", value)]],
-  ["email", (value: string) => [buildExpression("string", value)]],
-  ...GLOBAL_FLAGS.entries(),
-] as const);
+//   ["length", (value: string) => [buildExpression("number", value)]],
+//   ["email", (value: string) => [buildExpression("string", value)]],
+//   ...GLOBAL_FLAGS.entries(),
+// ] as const);
 
 function addPropertyCall(
   zodCall: ts.CallExpression,
