@@ -14,7 +14,6 @@ export class ZodSchemaGenerator implements vscode.CodeActionProvider {
     const text = document.getText(range);
     const line = document.lineAt(range.start.line).text;
     const wordRange = document.getWordRangeAtPosition(range.start);
-    console.log('LINE: ', { range, text, line, wordRange});
 
     if (!line.includes("interface") && !line.includes("type")) {
       return [];
